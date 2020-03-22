@@ -1,0 +1,3 @@
+/home/clarence/vcsrepo/CLion/ShutdownScheduler/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/clarence/vcsrepo/CLion/ShutdownScheduler/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/clarence/vcsrepo/CLion/ShutdownScheduler/cmake-build-debug/CMakeFiles/ShutdownScheduler.dir

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>236</width>
+    <width>239</width>
     <height>166</height>
    </rect>
   </property>
@@ -26,9 +26,9 @@
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="timeLabel">
+        <widget class="QLabel" name="timingLabel">
          <property name="text">
-          <string>Time:</string>
+          <string>Timing:</string>
          </property>
         </widget>
        </item>
@@ -40,7 +40,7 @@
         <widget class="QComboBox" name="typeComboBox"/>
        </item>
        <item>
-        <widget class="QComboBox" name="timeComboBox"/>
+        <widget class="QComboBox" name="timingComboBox"/>
        </item>
       </layout>
      </item>

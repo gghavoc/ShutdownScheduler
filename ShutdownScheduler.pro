@@ -21,19 +21,28 @@ SOURCES += \
     addpresetdialog.cpp \
     main.cpp \
     mainwindow.cpp \
+    presetitem.cpp \
+    presetwidget.cpp \
     shutdowndialog.cpp
 
 HEADERS += \
     addpresetdialog.h \
     mainwindow.h \
-    shutdowndialog.h
+    presetitem.h \
+    presetwidget.h \
+    shutdowndialog.h \
+    shutdownscheduler.h
 
 FORMS += \
     addpresetdialog.ui \
     mainwindow.ui \
+    presetwidget.ui \
     shutdowndialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+RESOURCES += \
+    resources.qrc

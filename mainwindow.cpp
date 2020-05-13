@@ -1,16 +1,18 @@
-#include "mainwindow.h"
-#include "ui_mainwindow.h"
-#include "shutdowndialog.h"
-#include "shutdowndialog.h"
-
 #include <QAction>
 #include <QCloseEvent>
 #include <QMessageBox>
 #include <QDebug>
 
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+#include "shutdowndialog.h"
+#include "presetwidget.h"
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , shutdownDialog(nullptr)
+    , showExtendedUi(false)
 {
     this->readSettings();
     this->ui->setupUi(this);
@@ -18,13 +20,18 @@ MainWindow::MainWindow(QWidget *parent)
     // create gui elements
     this->createAction();
     this->createMenu();
+    this->createModalDialog();
 
     this->changeUi(this->showExtendedUi);
 
     // link signals and slots
     this->createConnection();
 
-    this->layout()->setSizeConstraint(QLayout::SizeConstraint::SetFixedSize);
+    // widget attribute
+    //this->setAttribute(Qt::WidgetAttribute::WA_DeleteOnClose);
+
+    // set icon
+    this->setWindowIcon(QIcon(":/resource/image/png/appicon.png"));
 }
 
 MainWindow::~MainWindow()
@@ -38,11 +45,9 @@ void MainWindow::changeUi(bool extended)
     if (extended) {
         this->showExtendedUi = true;
         this->extendUi();
-        Q_EMIT this->uiExtended(this->showExtendedUi);
     } else {
         this->showExtendedUi = false;
         this->shrinkUi();
-        Q_EMIT this->uiExtended(this->showExtendedUi);
     }
 }
 
@@ -64,30 +69,16 @@ void MainWindow::open()
 
 void MainWindow::shutdown()
 {
-    ShutdownDialog *d = new ShutdownDialog(this);
-    this->connect(d, SIGNAL(shutdownSet(QDateTime,
-                                        int,
-                                        int,
-                                        bool)),
-                  this, SLOT(scheduleShutdown(QDateTime,
-                                              int,
-                                              int,
-                                              bool)));
-    if (d->exec()) {
-
-    } else {
-
-    }
-    delete d;
+    this->shutdownDialog->exec();
 }
 
 void MainWindow::about()
 {
     QMessageBox::about(this, tr("About Shutdown Scheduler"),
-                       tr("<h1>Shutdown Scheduler</h1>"
-                          "<h2>Copyright &copy; Clarence D. Manuel</h2>"
-                          "<p>This small application is made using"
-                          "Qt Widgets module from Qt Framework.\n"
+                       tr("<h3>Shutdown Scheduler</h3>"
+                          "<p> Version " APP_VERSION " " APP_STATUS  " Build " APP_BUILD_NO "</p>"
+                          "<h6>Copyright &copy; Clarence D. Manuel</h6>"
+                          "<p>This small application is made using Qt Framework.\n"
                           "To learn more about Qt, "
                           "click \"About Qt\" under the help menu.</p>"));
 }
@@ -99,46 +90,36 @@ void MainWindow::aboutQt()
 
 void MainWindow::exit()
 {
-
+    this->close();
 }
 
-void MainWindow::scheduleShutdown(QDateTime dateTime,
-                                  int shutdownType,
-                                  int shutdownTime,
+void MainWindow::scheduleShutdown(PresetItem presetItem,
                                   bool addToPreset)
 {
-    if (addToPreset) {
-        qDebug() << "added to preset";
-    }
+    if (presetItem.isValid()) {
+        if (addToPreset) {
+            qDebug() << "Added to presets";
+            this->addToPreset(presetItem);
+        }
 
-    std::string flag;
-    switch(shutdownType)
-    {
-    case ShutdownDialog::Shutdown:
-        flag = SHUTDOWN;
-        break;
-    case ShutdownDialog::Restart:
-        flag = RESTART;
-        break;
-    case ShutdownDialog::LogOut:
-        break;
-    default:
-        break;
-    }
+        std::string flag;
+        switch(presetItem.type())
+        {
+        case ShutdownScheduler::Type::Shutdown:
+            flag = SHUTDOWN;
+            break;
+        case ShutdownScheduler::Type::Restart:
+            flag = RESTART;
+            break;
+        case ShutdownScheduler::Type::LogOut:
+            break;
+        default:
+            break;
+        }
 
-    switch(shutdownTime)
-    {
-    case ShutdownDialog::Now:
-        this->shutdownNow(flag);
-        break;
-    case ShutdownDialog::At:
-        this->shutdownAt(dateTime,flag);
-        break;
-    case ShutdownDialog::After:
-        this->shutdownAfter(this->dateTimeToSeconds(dateTime), flag);
-        break;
-    default:
-        break;
+        this->shutdownAfter(presetItem.toRelativeSeconds(), flag);
+    } else {
+        qDebug() << "Invalid PresetItem";
     }
 }
 
@@ -164,7 +145,13 @@ void MainWindow::readFile()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    QMainWindow::close();
+    if (this->okToContinue()) {
+        this->writeSettings();
+//        event->accept(); same effect as QMainWindow::closeEvent(event);
+        QMainWindow::closeEvent(event);
+    } else {
+        event->ignore();
+    }
 }
 
 void MainWindow::createAction()
@@ -223,7 +210,6 @@ void MainWindow::createAction()
     this->setStatusTip(tr("Exit the application"));
     this->connect(this->exitAction, SIGNAL(triggered()),
                   this, SLOT(exit()));
-
 }
 
 void MainWindow::createStatusBar()
@@ -265,6 +251,21 @@ void MainWindow::createConnection()
                   this->ui->showExtendedUiCheckBox, SLOT(setChecked(bool)));
     this->connect(this, SIGNAL(uiExtended(bool)),
                   this->showExtendedUiAction, SLOT(setChecked(bool)));
+
+    // shutdownDialog connect to scheduleShutdown()
+    this->connect(this->shutdownDialog, SIGNAL(shutdownSet(PresetItem, bool)),
+                  this, SLOT(scheduleShutdown(PresetItem, bool)),
+                  Qt::ConnectionType::UniqueConnection);
+
+    // add preset button
+    this->connect(this->ui->addPresetButton, SIGNAL(pressed()),
+                  this->shutdownAction, SIGNAL(triggered()));
+}
+
+void MainWindow::createModalDialog()
+{
+    if (!this->shutdownDialog)
+        this->shutdownDialog = new ShutdownDialog(this);
 }
 
 void MainWindow::shutdownNow(std::string flag)
@@ -287,32 +288,86 @@ void MainWindow::shutdownAfter(uint32_t seconds, std::string flag)
             + " " TIME " "
             + std::to_string(seconds);
     qDebug() << command.c_str();
-    system(command.c_str());
+//    system(command.c_str());
 }
 
 void MainWindow::extendUi()
 {
+    // show
     this->menuBar()->show();
     this->statusBar()->show();
+    this->ui->addPresetButton->show();
+    this->ui->presetScrollArea->show();
+
+    // hide
     this->ui->showExtendedUiCheckBox->hide();
+    this->ui->shutDownButton->hide();
+    this->ui->cancelButton->hide();
+
+    // set adjustments
     this->ui->topLayout->setDirection(QBoxLayout::Direction::LeftToRight);
+    this->setMinimumSize(400, 400);
+    this->layout()->setSizeConstraint(QLayout::SizeConstraint::SetMinAndMaxSize);
+    Q_EMIT this->uiExtended(this->showExtendedUi);
 }
 
 void MainWindow::shrinkUi()
 {
+    // show
+    this->ui->showExtendedUiCheckBox->show();
+    this->ui->shutDownButton->show();
+    this->ui->cancelButton->show();
+
+    // hide
     this->menuBar()->hide();
     this->statusBar()->hide();
-    this->ui->showExtendedUiCheckBox->show();
+    this->ui->addPresetButton->hide();
+    this->ui->presetScrollArea->hide();
+
+    // set adjustments
     this->ui->topLayout->setDirection(QBoxLayout::Direction::TopToBottom);
+    this->layout()->setSizeConstraint(QLayout::SizeConstraint::SetFixedSize);
+    Q_EMIT this->uiExtended(this->showExtendedUi);
 }
 
 uint64_t MainWindow::dateTimeToSeconds(QDateTime dateTime)
 {
-    return  + (dateTime.date().year() * SECONDS_IN_YEAR)
-            + (dateTime.date().month() * SECONDS_IN_MONTH)
+    return  (dateTime.date().year() * (dateTime.date().daysInYear() * SECONDS_IN_DAY))
+            + (dateTime.date().month() * (dateTime.date().daysInMonth() *SECONDS_IN_DAY))
             + (dateTime.date().day() * SECONDS_IN_DAY)
             + (dateTime.time().hour() * SECONDS_IN_HOUR)
             + (dateTime.time().minute() * SECONDS_IN_MINUTE)
             + dateTime.time().second();
+}
+
+bool MainWindow::okToContinue()
+{
+    if (this->isWindowModified()) {
+        int r = QMessageBox::warning(this, tr("Save"),
+                                     tr("There are unsaved changes. \n"
+                                        "Do you want to save them?"),
+                                     QMessageBox::StandardButton::Yes
+                                     | QMessageBox::StandardButton::No,
+                                     QMessageBox::StandardButton::No);
+
+        if (r == QMessageBox::StandardButton::Yes) {
+            this->save();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool MainWindow::addToPreset(PresetItem presetItem)
+{
+    QGridLayout *newLayout = new QGridLayout(this);
+    newLayout->addWidget(new PresetWidget(this));
+    qDebug() << "Start";
+    this->ui->presetScrollArea->setLayout(newLayout);
+    qDebug() << "End";
+    return true;
 }
 

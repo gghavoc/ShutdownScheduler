@@ -4,35 +4,11 @@
 #include <QMainWindow>
 #include <QDateTime>
 
-#ifndef SHUTDOWN_FLAGS
-#define SHUTDOWN_FLAGS
-    #ifdef Q_OS_UNIX
-        #define SHUTDOWN_COMMAND "shutdown"
-        #define SHUTDOWN "-P"
-        #define RESTART "-r"
-        #define HALT "-H"
-        #define CANCEL "-c"
-        #define TIME "-t"
-    #elif defined Q_OS_WIN
-        #define SHUTDOWN_COMMAND "shutdown"
-        #define SHUTDOWN "/s"
-        #define RESTART "/r"
-        #define HALT "/s"
-        #define CANCEL "/c"
-        #define TIME "/t"
-    #endif // Q_OS_UNIX
-#endif // SHUTDOWN_FLAGS
-
-#ifndef TO_SECONDS
-#define TO_SECONDS
-    #define SECONDS_IN_YEAR 32140800
-    #define SECONDS_IN_MONTH 2678400
-    #define SECONDS_IN_DAY 86400
-    #define SECONDS_IN_HOUR 3600
-    #define SECONDS_IN_MINUTE 60
-#endif
+#include "shutdownscheduler.h"
+#include "presetitem.h"
 
 class QAction;
+class ShutdownDialog;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -61,9 +37,7 @@ public Q_SLOTS:
     void exit();
 
 private Q_SLOTS:
-    void scheduleShutdown(QDateTime dateTime,
-                          int shutdownType,
-                          int shutdownTime,
+    void scheduleShutdown(PresetItem presetItem,
                           bool addToPreset = false);
 
 public:
@@ -84,15 +58,26 @@ private:
     void createMenu();
     void createContextMenu();
     void createConnection();
+    void createModalDialog();
     void shutdownNow(std::string flag = SHUTDOWN);
     void shutdownAt(QDateTime dateTime, std::string flag = SHUTDOWN);
     void shutdownAfter(uint32_t seconds, std::string flag = SHUTDOWN);
     void extendUi();
     void shrinkUi();
     uint64_t dateTimeToSeconds(QDateTime dateTime);
+    bool okToContinue();
+    bool addToPreset(PresetItem presetItem);
+
 
 private: // date members
+    // strings
+    QString currentFile;
+
+    // ui
     Ui::MainWindow *ui;
+
+    // dialogs
+    ShutdownDialog *shutdownDialog;
 
     // actions
     QAction *openAction;

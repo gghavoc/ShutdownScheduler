@@ -1,7 +1,8 @@
+#include <QApplication>
+
 #include "mainwindow.h"
 #include "shutdowndialog.h"
 
-#include <QApplication>
 
 int main(int argc, char *argv[])
 {

@@ -1,7 +1,8 @@
+#include <QDebug>
+#include <QShowEvent>
+
 #include "shutdowndialog.h"
 #include "ui_shutdowndialog.h"
-
-#include "QDebug"
 
 ShutdownDialog::ShutdownDialog(QWidget *parent) :
     QDialog(parent),
@@ -12,14 +13,14 @@ ShutdownDialog::ShutdownDialog(QWidget *parent) :
     this->layout()->setSizeConstraint(QLayout::SizeConstraint::SetFixedSize);
 
     // add items to time combo box
-    this->ui->timeComboBox->addItem(tr("Now"));
-    this->ui->timeComboBox->addItem(tr("At"));
-    this->ui->timeComboBox->addItem(tr("After"));
+    this->ui->timingComboBox->addItem(tr("Now"));
+    this->ui->timingComboBox->addItem(tr("At"));
+    this->ui->timingComboBox->addItem(tr("After"));
 
     // add items to type combo box
     this->ui->typeComboBox->addItem(tr("Shutdown"));
     this->ui->typeComboBox->addItem(tr("Restart"));
-//    this->ui->typeComboBox->addItem(tr("Log Out")); // don't allow logging out
+//    this->ui->typeComboBox->addItem(tr("Log Out"));
 
     // set current time at creation
     this->ui->dateTimeEdit->setDateTime(QDateTime::currentDateTime());
@@ -39,8 +40,11 @@ ShutdownDialog::ShutdownDialog(QWidget *parent) :
                   this, SLOT(okClicked()));
 
     // connect combo box to changeUi()
-    this->connect(this->ui->timeComboBox, SIGNAL(currentIndexChanged(int)),
+    this->connect(this->ui->timingComboBox, SIGNAL(currentIndexChanged(int)),
                   this, SLOT(changeUi(int)));
+
+    // destroy on close
+    // this->setAttribute(Qt::WidgetAttribute::WA_DeleteOnClose)
 }
 
 ShutdownDialog::~ShutdownDialog()
@@ -48,49 +52,57 @@ ShutdownDialog::~ShutdownDialog()
     delete ui;
 }
 
+void ShutdownDialog::showEvent(QShowEvent *event)
+{
+    // reset ui every time it shows
+    this->ui->typeComboBox->setCurrentIndex(0);
+    this->ui->timingComboBox->setCurrentIndex(0);
+    QDialog::showEvent(event);
+}
+
 void ShutdownDialog::okClicked()
 {
-    int typeFlag = this->ui->typeComboBox->currentIndex();
-    int timeFlag = this->ui->timeComboBox->currentIndex();
+    PresetItem presetItem;
 
-    QDateTime dateTime;
+    presetItem.setShutdownType((ShutdownScheduler::Type)this->ui->typeComboBox->currentIndex());
+    presetItem.setShutdownTiming((ShutdownScheduler::Timing)this->ui->timingComboBox->currentIndex());
 
-    switch (timeFlag)
+    switch (presetItem.timing())
     {
-    case ShutdownTime::Now:
-        dateTime.setTime(QTime(0, 0, 0, 0));    // h, m, s, ms
-        dateTime.setDate(QDate(0, 0, 0));       // y, m, d
+    case ShutdownScheduler::Timing::Now:
+        presetItem.dateTime().setTime(QTime(0, 0, 0, 0));    // h, m, s, ms
+        presetItem.dateTime().setDate(QDate(0, 0, 0));       // y, m, d
         break;
-    case ShutdownTime::At:
-        dateTime = this->ui->dateTimeEdit->dateTime();
+    case ShutdownScheduler::Timing::At:
+        presetItem.dateTime() = this->ui->dateTimeEdit->dateTime();
         break;
-    case ShutdownTime::After:
-        dateTime.setTime(this->ui->timeEdit->time());
-        dateTime.setDate(QDate(0, 0, 0));       // y, m, d
+    case ShutdownScheduler::Timing::After:
+        presetItem.dateTime().setTime(this->ui->timeEdit->time());
+        presetItem.dateTime().setDate(QDate(0, 0, 0));       // y, m, d
         break;
     default:
         break;
     }
 
-    qDebug() << typeFlag << timeFlag;
-    Q_EMIT this->shutdownSet(dateTime,
-                             typeFlag,
-                             timeFlag,
+    Q_EMIT this->shutdownSet(presetItem,
                              this->ui->addToPresetsCheckBox->isChecked());
 
 }
 
-void ShutdownDialog::changeUi(int shutdownType)
+void ShutdownDialog::changeUi(int uiType)
 {
+    ShutdownScheduler::Timing shutdownType = (ShutdownScheduler::Timing)uiType;
+
     switch (shutdownType)
     {
-    case ShutdownTime::Now:
+    case ShutdownScheduler::Timing::Now:
         this->ui->dateTimeEdit->hide();
         this->ui->timeEdit->hide();
         this->ui->addToPresetsCheckBox->hide();
         this->ui->formatLabel->hide();
         break;
-    case ShutdownTime::At:
+    case ShutdownScheduler::Timing::At:
+        this->ui->dateTimeEdit->setDateTime(QDateTime::currentDateTime());
         this->ui->dateTimeEdit->show();
         this->ui->timeEdit->hide();
         this->ui->addToPresetsCheckBox->show();
@@ -98,8 +110,9 @@ void ShutdownDialog::changeUi(int shutdownType)
         this->ui->formatLabel->show();
 
         break;
-    case ShutdownTime::After:
+    case ShutdownScheduler::Timing::After:
         this->ui->dateTimeEdit->hide();
+        this->ui->timeEdit->time().setHMS(0, 0, 0);
         this->ui->timeEdit->show();
         this->ui->addToPresetsCheckBox->show();
         this->ui->formatLabel->setText(tr("HH:MM:SS"));

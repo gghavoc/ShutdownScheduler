@@ -11,7 +11,7 @@ public:
 
 
 public:
-    PresetItem(QDateTime getDateTime = QDateTime(),
+    explicit PresetItem(QDateTime getDateTime = QDateTime(),
                ShutdownScheduler::Type shutdownType = ShutdownScheduler::Type::Invalid,
                ShutdownScheduler::Timing shutdownTiming = ShutdownScheduler::Timing::Invalid);
     ~PresetItem();

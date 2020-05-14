@@ -364,7 +364,7 @@ bool MainWindow::okToContinue()
 bool MainWindow::addToPreset(PresetItem presetItem)
 {
     QGridLayout *newLayout = new QGridLayout(this);
-    newLayout->addWidget(new PresetWidget(this));
+    newLayout->addWidget(new PresetWidget(presetItem, this));
     qDebug() << "Start";
     this->ui->presetScrollArea->setLayout(newLayout);
     qDebug() << "End";

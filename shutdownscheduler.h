@@ -26,8 +26,8 @@
     #define SECONDS_IN_YEAR 32140800
     #define SECONDS_IN_MONTH 2678400
     #define SECONDS_IN_DAY 86400
-    #define SECONDS_IN_HOUR 3600
-    #define SECONDS_IN_MINUTE 60
+#define SECONDS_IN_HOUR 3600
+#define SECONDS_IN_MINUTE 60
 #endif
 
 #ifndef APP_INFO
